@@ -16,6 +16,22 @@ namespace Pharmacy
         {
             return _dbHelper.GetMedicineById(id);
         }
+        public Buyer GetBuyerById(int id)
+        {
+            return _dbHelper.GetBuyerById(id);
+        }
+        public void UpdateBuyer(Buyer buyer)
+        {
+            _dbHelper.UpdateBuyer(buyer);
+        }
+        public void AddBuyer(Buyer buyer)
+        {
+            _dbHelper.InsertBuyer(buyer);
+        }
+        public Medicine? GetMedicineByName(string name)
+        {
+            return _dbHelper.GetAllMedicines().FirstOrDefault(m => m.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+        }
 
         public void UpdateMedicine(Medicine medicine)
         {
@@ -46,27 +62,64 @@ namespace Pharmacy
             return _dbHelper.GetAllMedicines();
         }
         // Sell a medicine (decrease its quantity)
-        public void SellMedicine(int id)
+        public void SellMedicine()
         {
-            var medicineToSell = _dbHelper.GetMedicineById(id);
+            Console.WriteLine("\nSell Medicine");
 
-            if (medicineToSell != null)
+            // Ask for buyer ID
+            Console.Write("Enter Buyer ID: ");
+            int buyerId = int.Parse(Console.ReadLine() ?? "0");
+
+            // Check if buyer exists
+            var buyer = _dbHelper.GetBuyerById(buyerId);
+            if (buyer == null)
             {
-                if (medicineToSell.Quantity > 0)
-                {
-                    medicineToSell.Quantity -= 1;  // Decrease quantity by 1
-                    _dbHelper.UpdateMedicine(medicineToSell);
-                    Console.WriteLine($"Sold 1 unit of {medicineToSell.Name}. Remaining stock: {medicineToSell.Quantity}");
-                }
-                else
-                {
-                    Console.WriteLine($"No stock left for {medicineToSell.Name}.");
-                }
+                // If buyer does not exist, ask for name and contact
+                Console.Write("Enter Buyer Name: ");
+                string name = Console.ReadLine() ?? string.Empty;
+
+                Console.Write("Enter Buyer Contact: ");
+                string contact = Console.ReadLine() ?? string.Empty;
+
+                // Create new buyer
+                buyer = new Buyer(buyerId, name, contact);
+                _dbHelper.InsertBuyer(buyer);
             }
-            else
+
+            // Ask for medicine name
+            Console.Write("Enter Medicine Name: ");
+            string medicineName = Console.ReadLine() ?? string.Empty;
+
+            // Find medicine by name
+            var medicine = _dbHelper.GetAllMedicines().FirstOrDefault(m => m.Name.Equals(medicineName, StringComparison.OrdinalIgnoreCase));
+            if (medicine == null)
             {
                 Console.WriteLine("Medicine not found.");
+                return;
             }
+
+            // Ask for quantity
+            Console.Write("Enter Quantity: ");
+            int quantity = int.Parse(Console.ReadLine() ?? "0");
+
+            // Check if enough stock is available
+            if (medicine.Quantity < quantity)
+            {
+                Console.WriteLine($"Not enough stock. Available: {medicine.Quantity}");
+                return;
+            }
+
+            // Update medicine quantity
+            medicine.Quantity -= quantity;
+            _dbHelper.UpdateMedicine(medicine);
+
+            // Update buyer's purchase history
+            string purchaseDetail = $"Purchased {quantity} units of {medicineName} on {DateTime.Now.ToShortDateString()}";
+            buyer.AddPurchase(purchaseDetail);
+            _dbHelper.UpdateBuyer(buyer);
+
+            // Display confirmation message
+            Console.WriteLine($"Sale successful! {quantity} units of {medicineName} sold to {buyer.Name}.");
         }
 
         // Register a buyer

@@ -1,8 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Pharmacy
 {
@@ -76,6 +73,23 @@ namespace Pharmacy
             while (j < right.Count)
             {
                 medicines[k++] = right[j++];
+            }
+        }
+
+        // Bubble Sort for sorting medicines by quantity
+        public static void BubbleSortByQuantity(List<Medicine> medicines)
+        {
+            int n = medicines.Count;
+            for (int i = 0; i < n - 1; i++)
+            {
+                for (int j = 0; j < n - i - 1; j++)
+                {
+                    if (medicines[j].Quantity > medicines[j + 1].Quantity)
+                    {
+                        // Swap medicines[j] and medicines[j+1]
+                        Swap(medicines, j, j + 1);
+                    }
+                }
             }
         }
 

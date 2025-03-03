@@ -306,5 +306,57 @@ namespace Pharmacy
 
             return suppliers;
         }
+        public Buyer? GetBuyerById(int id)
+        {
+            using (var connection = new SQLiteConnection($"Data Source={dbFilePath};Version=3;"))
+            {
+                connection.Open();
+
+                string selectBuyer = "SELECT * FROM Buyers WHERE Id = @Id";
+                using (var command = new SQLiteCommand(selectBuyer, connection))
+                {
+                    command.Parameters.AddWithValue("@Id", id);
+                    using (var reader = command.ExecuteReader())
+                    {
+                        if (reader.Read())
+                        {
+                            return new Buyer(
+                                reader.GetInt32(0),  // Id
+                                reader.GetString(1), // Name
+                                reader.GetString(2)  // Contact
+                            );
+                        }
+                    }
+                }
+
+                connection.Close();
+            }
+
+            return null; // Return null if buyer is not found
+        }
+
+        public void UpdateBuyer(Buyer buyer)
+        {
+            using (var connection = new SQLiteConnection($"Data Source={dbFilePath};Version=3;"))
+            {
+                connection.Open();
+
+                string updateBuyer = @"
+            UPDATE Buyers
+            SET Name = @Name, Contact = @Contact
+            WHERE Id = @Id;
+        ";
+
+                using (var command = new SQLiteCommand(updateBuyer, connection))
+                {
+                    command.Parameters.AddWithValue("@Id", buyer.BuyerId);
+                    command.Parameters.AddWithValue("@Name", buyer.Name);
+                    command.Parameters.AddWithValue("@Contact", buyer.Contact);
+                    command.ExecuteNonQuery();
+                }
+
+                connection.Close();
+            }
+        }
     }
 }

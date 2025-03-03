@@ -152,22 +152,95 @@ namespace Pharmacy
         {
             Console.WriteLine("\nSell Medicine");
 
-            Console.Write("Enter Medicine ID to sell: ");
-            int id = int.Parse(Console.ReadLine());
+            // Ask for buyer ID
+            Console.Write("Enter Buyer ID: ");
+            int buyerId = int.Parse(Console.ReadLine());
 
-            pharmacy.SellMedicine(id);
+            // Check if buyer exists
+            var buyer = pharmacy.GetBuyerById(buyerId);
+            if (buyer == null)
+            {
+                // If buyer does not exist, ask for name and contact
+                Console.Write("Enter Buyer Name: ");
+                string name = Console.ReadLine();
+
+                Console.Write("Enter Buyer Contact: ");
+                string contact = Console.ReadLine();
+
+                // Create new buyer
+                buyer = new Buyer(buyerId, name, contact);
+                pharmacy.AddBuyer(buyer);
+            }
+
+            // Ask for medicine name
+            Console.Write("Enter Medicine Name: ");
+            string medicineName = Console.ReadLine();
+
+            // Find medicine by name
+            var medicine = pharmacy.GetMedicineByName(medicineName);
+            if (medicine == null)
+            {
+                Console.WriteLine("Medicine not found.");
+                return;
+            }
+
+            // Ask for quantity
+            Console.Write("Enter Quantity: ");
+            int quantity = int.Parse(Console.ReadLine());
+
+            // Check if enough stock is available
+            if (medicine.Quantity < quantity)
+            {
+                Console.WriteLine($"Not enough stock. Available: {medicine.Quantity}");
+                return;
+            }
+
+            // Update medicine quantity
+            medicine.Quantity -= quantity;
+            pharmacy.UpdateMedicine(medicine);
+
+            // Update buyer's purchase history
+            string purchaseDetail = $"Purchased {quantity} units of {medicineName} on {DateTime.Now.ToShortDateString()}";
+            buyer.AddPurchase(purchaseDetail);
+            pharmacy.UpdateBuyer(buyer);
+
+            // Display confirmation message
+            Console.WriteLine($"Sale successful! {quantity} units of {medicineName} sold to {buyer.Name}.");
         }
 
         // Method to display all medicines
         static void DisplayAllMedicines(Inventory pharmacy)
         {
-            Console.WriteLine("\nList of All Medicines:");
+            Console.WriteLine("\nSort Medicines By:");
+            Console.WriteLine("1. Name (Quick Sort)");
+            Console.WriteLine("2. Quantity (Bubble Sort)");
+            Console.WriteLine("3. Expiry Date (Merge Sort)");
+            Console.Write("Enter your choice: ");
+            string sortChoice = Console.ReadLine();
+
             var medicines = pharmacy.GetAllMedicines();
+
+            switch (sortChoice)
+            {
+                case "1":
+                    Sorting.QuickSortByName(medicines, 0, medicines.Count - 1); // Sort by name using Quick Sort
+                    break;
+                case "2":
+                    Sorting.BubbleSortByQuantity(medicines); // Sort by quantity using Bubble Sort
+                    break;
+                case "3":
+                    Sorting.MergeSortByExpiry(medicines); // Sort by expiry date using Merge Sort
+                    break;
+                default:
+                    Console.WriteLine("Invalid choice. Displaying unsorted list.");
+                    break;
+            }
+
+            Console.WriteLine("\nList of All Medicines:");
             foreach (var medicine in medicines)
             {
                 Console.WriteLine($"ID: {medicine.Id}, Name: {medicine.Name}, Batch: {medicine.BatchNumber}, Quantity: {medicine.Quantity}, Expiry: {medicine.ExpiryDate.ToShortDateString()}, Supplier: {medicine.Supplier}, Manufacturer: {medicine.Manufacturer}");
             }
         }
     }
-    
 }
