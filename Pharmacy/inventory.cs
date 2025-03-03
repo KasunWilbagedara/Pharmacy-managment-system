@@ -62,6 +62,9 @@ namespace Pharmacy
             return _dbHelper.GetAllMedicines();
         }
         // Sell a medicine (decrease its quantity)
+        // In Inventory.cs, replace the existing SellMedicine() method with this:
+        // In Inventory.cs, update SellMedicine()
+        // In Inventory.cs, replace the existing SellMedicine method with this:
         public void SellMedicine()
         {
             Console.WriteLine("\nSell Medicine");
@@ -74,16 +77,15 @@ namespace Pharmacy
             var buyer = _dbHelper.GetBuyerById(buyerId);
             if (buyer == null)
             {
-                // If buyer does not exist, ask for name and contact
                 Console.Write("Enter Buyer Name: ");
                 string name = Console.ReadLine() ?? string.Empty;
 
                 Console.Write("Enter Buyer Contact: ");
                 string contact = Console.ReadLine() ?? string.Empty;
 
-                // Create new buyer
                 buyer = new Buyer(buyerId, name, contact);
                 _dbHelper.InsertBuyer(buyer);
+                Console.WriteLine($"New buyer {buyer.Name} added.");
             }
 
             // Ask for medicine name
@@ -98,8 +100,11 @@ namespace Pharmacy
                 return;
             }
 
+            // Display current quantity
+            Console.WriteLine($"Current stock of {medicine.Name}: {medicine.Quantity} units");
+
             // Ask for quantity
-            Console.Write("Enter Quantity: ");
+            Console.Write("Enter Quantity to Sell: ");
             int quantity = int.Parse(Console.ReadLine() ?? "0");
 
             // Check if enough stock is available
@@ -111,15 +116,20 @@ namespace Pharmacy
 
             // Update medicine quantity
             medicine.Quantity -= quantity;
-            _dbHelper.UpdateMedicine(medicine);
+            _dbHelper.UpdateMedicine(medicine); // Persist the updated quantity to the database
+            Console.WriteLine($"Updated stock of {medicine.Name}: {medicine.Quantity} units remaining");
 
-            // Update buyer's purchase history
-            string purchaseDetail = $"Purchased {quantity} units of {medicineName} on {DateTime.Now.ToShortDateString()}";
-            buyer.AddPurchase(purchaseDetail);
-            _dbHelper.UpdateBuyer(buyer);
+            // Update buyer's purchase history in database
+            string purchaseDetail = $"Purchased {quantity} units of {medicineName} on {DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")}";
+            _dbHelper.InsertPurchase(buyer.BuyerId, purchaseDetail);
 
-            // Display confirmation message
+            // Reload buyer to get updated history
+            buyer = _dbHelper.GetBuyerById(buyerId);
+
+            // Display confirmation and updated buyer history
             Console.WriteLine($"Sale successful! {quantity} units of {medicineName} sold to {buyer.Name}.");
+            Console.WriteLine("\nUpdated Buyer Purchase History:");
+            buyer.ShowPurchaseHistory();
         }
 
         // Register a buyer
@@ -128,6 +138,73 @@ namespace Pharmacy
             Buyer newBuyer = new Buyer(id, name, contact);
             _dbHelper.InsertBuyer(newBuyer);
             Console.WriteLine($"Registered new buyer: {name}");
+
+
+        }
+
+
+        // In Inventory.cs, add this method to the Inventory class
+        public void SearchMedicineByNameOrId()
+        {
+            Console.WriteLine("\nSearch Medicine");
+            Console.WriteLine("1. Search by Name");
+            Console.WriteLine("2. Search by ID");
+            Console.Write("Enter your choice (1 or 2): ");
+            string choice = Console.ReadLine();
+
+            switch (choice)
+            {
+                case "1":
+                    Console.Write("Enter Medicine Name: ");
+                    string name = Console.ReadLine() ?? string.Empty;
+                    var medicineByName = _dbHelper.GetAllMedicines()
+                        .FirstOrDefault(m => m.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+                    if (medicineByName != null)
+                    {
+                        DisplayMedicineDetails(medicineByName);
+                    }
+                    else
+                    {
+                        Console.WriteLine($"No medicine found with name '{name}'.");
+                    }
+                    break;
+
+                case "2":
+                    Console.Write("Enter Medicine ID: ");
+                    int id;
+                    if (!int.TryParse(Console.ReadLine(), out id))
+                    {
+                        Console.WriteLine("Invalid ID. Please enter a number.");
+                        return;
+                    }
+                    var medicineById = _dbHelper.GetMedicineById(id);
+                    if (medicineById != null)
+                    {
+                        DisplayMedicineDetails(medicineById);
+                    }
+                    else
+                    {
+                        Console.WriteLine($"No medicine found with ID '{id}'.");
+                    }
+                    break;
+
+                default:
+                    Console.WriteLine("Invalid choice. Please select 1 or 2.");
+                    break;
+            }
+        }
+
+        // Helper method to display medicine details
+        private void DisplayMedicineDetails(Medicine medicine)
+        {
+            Console.WriteLine("\nMedicine Details:");
+            Console.WriteLine($"ID: {medicine.Id}");
+            Console.WriteLine($"Name: {medicine.Name}");
+            Console.WriteLine($"Batch Number: {medicine.BatchNumber}");
+            Console.WriteLine($"Quantity: {medicine.Quantity} units");
+            Console.WriteLine($"Expiry Date: {medicine.ExpiryDate.ToString("yyyy-MM-dd")}");
+            Console.WriteLine($"Supplier: {medicine.Supplier}");
+            Console.WriteLine($"Manufacturer: {medicine.Manufacturer}");
         }
 
         // Display list of suppliers
@@ -248,6 +325,79 @@ namespace Pharmacy
             else
             {
                 Console.WriteLine("No buyers found matching your search.");
+            }
+        }
+        public void DisplayBuyersHistory()
+        {
+            Console.WriteLine("\nSort Buyers By:");
+            Console.WriteLine("1. ID");
+            Console.WriteLine("2. Name");
+            Console.Write("Enter your choice: ");
+            string sortChoice = Console.ReadLine();
+
+            var buyers = _dbHelper.GetAllBuyers();
+
+            switch (sortChoice)
+            {
+                case "1":
+                    buyers = buyers.OrderBy(b => b.BuyerId).ToList();
+                    break;
+                case "2":
+                    buyers = buyers.OrderBy(b => b.Name).ToList();
+                    break;
+                default:
+                    Console.WriteLine("Invalid choice. Displaying unsorted list.");
+                    break;
+            }
+
+            Console.WriteLine("\nBuyers and Purchase History:");
+            foreach (var buyer in buyers)
+            {
+                Console.WriteLine($"\nBuyer ID: {buyer.BuyerId}, Name: {buyer.Name}, Contact: {buyer.Contact}");
+                Console.WriteLine("Purchase History:");
+                if (buyer.PurchaseHistory.Count == 0)
+                {
+                    Console.WriteLine("  No purchases recorded.");
+                }
+                else
+                {
+                    foreach (var purchase in buyer.PurchaseHistory)
+                    {
+                        Console.WriteLine($"  - {purchase}");
+                    }
+                }
+            }
+        }
+
+        // Search Buyer by ID and show summary
+        public void SearchBuyerById()
+        {
+            Console.Write("\nEnter Buyer ID to search: ");
+            int id = int.Parse(Console.ReadLine() ?? "0");
+
+            var buyer = _dbHelper.GetBuyerById(id);
+            if (buyer == null)
+            {
+                Console.WriteLine("Buyer not found.");
+                return;
+            }
+
+            Console.WriteLine("\nBuyer Summary:");
+            Console.WriteLine($"ID: {buyer.BuyerId}");
+            Console.WriteLine($"Name: {buyer.Name}");
+            Console.WriteLine($"Contact: {buyer.Contact}");
+            Console.WriteLine($"Total Purchases: {buyer.PurchaseHistory.Count}");
+            Console.WriteLine("Purchase History:");
+            if (buyer.PurchaseHistory.Count == 0)
+            {
+                Console.WriteLine("  No purchases recorded.");
+            }
+            else
+            {
+                foreach (var purchase in buyer.PurchaseHistory)
+                {
+                    Console.WriteLine($"  - {purchase}");
+                }
             }
         }
     }

@@ -4,18 +4,14 @@ namespace Pharmacy
 {
     public class Program
     {
+        // In Program.cs, replace the existing SellMedicine() method call in the switch statement:
+        // In Program.cs, update the Main method
         static void Main(string[] args)
         {
-            // Create an instance of the DatabaseHelper class
             DatabaseHelper dbHelper = new DatabaseHelper();
-
-            // Initialize the database (this will create the database and tables if not already present)
             dbHelper.InitializeDatabase();
-
-            // Create the Inventory object and pass dbHelper to it
             Inventory pharmacy = new Inventory(dbHelper);
 
-            // Display the menu
             while (true)
             {
                 Console.WriteLine("\nPharmacy Inventory Management System");
@@ -23,7 +19,10 @@ namespace Pharmacy
                 Console.WriteLine("2. Modify Medicine Details");
                 Console.WriteLine("3. Sell Medicine");
                 Console.WriteLine("4. Display All Medicines");
-                Console.WriteLine("5. Exit");
+                Console.WriteLine("5. Display Buyers History");
+                Console.WriteLine("6. Search Buyer by ID");
+                Console.WriteLine("7. Search Medicine"); // New option
+                Console.WriteLine("8. Exit");
                 Console.Write("Enter your choice: ");
 
                 string choice = Console.ReadLine();
@@ -37,12 +36,21 @@ namespace Pharmacy
                         ModifyMedicine(pharmacy);
                         break;
                     case "3":
-                        SellMedicine(pharmacy);
+                        pharmacy.SellMedicine();
                         break;
                     case "4":
                         DisplayAllMedicines(pharmacy);
                         break;
                     case "5":
+                        DisplayBuyersHistory(pharmacy);
+                        break;
+                    case "6":
+                        SearchBuyerById(pharmacy);
+                        break;
+                    case "7":
+                        SearchMedicine(pharmacy); // Call the new method
+                        break;
+                    case "8":
                         Console.WriteLine("Exiting the system...");
                         return;
                     default:
@@ -50,6 +58,26 @@ namespace Pharmacy
                         break;
                 }
             }
+        }
+
+        // Add this new static method to Program.cs
+        static void SearchMedicine(Inventory pharmacy)
+        {
+            pharmacy.SearchMedicineByNameOrId();
+        }
+
+        // Remove the static SellMedicine() method from Program.cs entirely
+        // (delete the entire SellMedicine method that was previously there)
+
+        // Add these new static methods to Program.cs
+        static void DisplayBuyersHistory(Inventory pharmacy)
+        {
+            pharmacy.DisplayBuyersHistory();
+        }
+
+        static void SearchBuyerById(Inventory pharmacy)
+        {
+            pharmacy.SearchBuyerById();
         }
 
         // Method to add medicine

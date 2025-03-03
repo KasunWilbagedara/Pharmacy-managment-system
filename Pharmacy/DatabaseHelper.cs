@@ -7,70 +7,133 @@ namespace Pharmacy
 {
     public class DatabaseHelper
     {
-        private string dbFilePath = "pharmacy_inventory.db"; // Database file path
+        private string dbFilePath = "pharmacy_inventory.db";
+        private bool verbose = true; // Set to true to see SQL statements
 
-        // Create database and tables if not exist
-        public void InitializeDatabase()
+        // Helper method to execute SQL with logging
+        private void ExecuteSql(SQLiteConnection connection, string sql, Dictionary<string, object> parameters = null)
         {
-            if (!File.Exists(dbFilePath))
+            using (var command = new SQLiteCommand(sql, connection))
             {
-                SQLiteConnection.CreateFile(dbFilePath);
-                Console.WriteLine("Database created!");
-
-                using (var connection = new SQLiteConnection($"Data Source={dbFilePath};Version=3;"))
+                if (parameters != null)
                 {
-                    connection.Open();
-
-                    // Create Medicines Table
-                    string createMedicinesTable = @"
-                        CREATE TABLE IF NOT EXISTS Medicines (
-                            Id INTEGER PRIMARY KEY,
-                            Name TEXT NOT NULL,
-                            BatchNumber TEXT NOT NULL,
-                            Quantity INTEGER NOT NULL,
-                            ExpiryDate TEXT NOT NULL,
-                            Supplier TEXT NOT NULL,
-                            Manufacturer TEXT NOT NULL
-                        );
-                    ";
-
-                    // Create Buyers Table
-                    string createBuyersTable = @"
-                        CREATE TABLE IF NOT EXISTS Buyers (
-                            Id INTEGER PRIMARY KEY,
-                            Name TEXT NOT NULL,
-                            Contact TEXT NOT NULL
-                        );
-                    ";
-
-                    // Create Suppliers Table
-                    string createSuppliersTable = @"
-                        CREATE TABLE IF NOT EXISTS Suppliers (
-                            Id INTEGER PRIMARY KEY AUTOINCREMENT,
-                            Name TEXT NOT NULL,
-                            Contact TEXT NOT NULL
-                        );
-                    ";
-
-                    using (var command = new SQLiteCommand(createMedicinesTable, connection))
+                    foreach (var param in parameters)
                     {
-                        command.ExecuteNonQuery();
+                        command.Parameters.AddWithValue(param.Key, param.Value);
                     }
-                    using (var command = new SQLiteCommand(createBuyersTable, connection))
-                    {
-                        command.ExecuteNonQuery();
-                    }
-                    using (var command = new SQLiteCommand(createSuppliersTable, connection))
-                    {
-                        command.ExecuteNonQuery();
-                    }
-
-                    connection.Close();
                 }
+
+                if (verbose)
+                {
+                    Console.WriteLine($"Executing SQL: {sql}");
+                    if (parameters != null)
+                    {
+                        Console.WriteLine("Parameters:");
+                        foreach (var param in parameters)
+                        {
+                            Console.WriteLine($"  {param.Key}: {param.Value}");
+                        }
+                    }
+                }
+
+                command.ExecuteNonQuery();
             }
         }
 
-        // Add a new medicine to the database
+        // Helper method to read data with logging
+        private SQLiteDataReader ExecuteReader(SQLiteConnection connection, string sql, Dictionary<string, object> parameters = null)
+        {
+            using (var command = new SQLiteCommand(sql, connection))
+            {
+                if (parameters != null)
+                {
+                    foreach (var param in parameters)
+                    {
+                        command.Parameters.AddWithValue(param.Key, param.Value);
+                    }
+                }
+
+                if (verbose)
+                {
+                    Console.WriteLine($"Executing SQL: {sql}");
+                    if (parameters != null)
+                    {
+                        Console.WriteLine("Parameters:");
+                        foreach (var param in parameters)
+                        {
+                            Console.WriteLine($"  {param.Key}: {param.Value}");
+                        }
+                    }
+                }
+
+                return command.ExecuteReader();
+            }
+        }
+
+        public void InitializeDatabase()
+        {
+            bool databaseExists = File.Exists(dbFilePath);
+            if (!databaseExists)
+            {
+                SQLiteConnection.CreateFile(dbFilePath);
+                Console.WriteLine("Database created!");
+            }
+
+            using (var connection = new SQLiteConnection($"Data Source={dbFilePath};Version=3;"))
+            {
+                connection.Open();
+
+                string createMedicinesTable = @"
+                    CREATE TABLE IF NOT EXISTS Medicines (
+                        Id INTEGER PRIMARY KEY,
+                        Name TEXT NOT NULL,
+                        BatchNumber TEXT NOT NULL,
+                        Quantity INTEGER NOT NULL,
+                        ExpiryDate TEXT NOT NULL,
+                        Supplier TEXT NOT NULL,
+                        Manufacturer TEXT NOT NULL
+                    );";
+
+                string createBuyersTable = @"
+                    CREATE TABLE IF NOT EXISTS Buyers (
+                        Id INTEGER PRIMARY KEY,
+                        Name TEXT NOT NULL,
+                        Contact TEXT NOT NULL
+                    );";
+
+                string createSuppliersTable = @"
+                    CREATE TABLE IF NOT EXISTS Suppliers (
+                        Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        Name TEXT NOT NULL,
+                        Contact TEXT NOT NULL
+                    );";
+
+                string createPurchaseHistoryTable = @"
+                    CREATE TABLE IF NOT EXISTS PurchaseHistory (
+                        Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        BuyerId INTEGER,
+                        PurchaseDetail TEXT NOT NULL,
+                        FOREIGN KEY (BuyerId) REFERENCES Buyers(Id)
+                    );";
+
+                ExecuteSql(connection, createMedicinesTable);
+                ExecuteSql(connection, createBuyersTable);
+                ExecuteSql(connection, createSuppliersTable);
+                ExecuteSql(connection, createPurchaseHistoryTable);
+
+                if (!databaseExists)
+                {
+                    Console.WriteLine("All tables initialized!");
+                }
+                else
+                {
+                    Console.WriteLine("Database tables verified!");
+                }
+
+                connection.Close();
+            }
+        }
+
         public void InsertMedicine(Medicine medicine)
         {
             using (var connection = new SQLiteConnection($"Data Source={dbFilePath};Version=3;"))
@@ -82,23 +145,22 @@ namespace Pharmacy
                     VALUES (@Id, @Name, @BatchNumber, @Quantity, @ExpiryDate, @Supplier, @Manufacturer);
                 ";
 
-                using (var command = new SQLiteCommand(insertMedicine, connection))
+                var parameters = new Dictionary<string, object>
                 {
-                    command.Parameters.AddWithValue("@Id", medicine.Id);
-                    command.Parameters.AddWithValue("@Name", medicine.Name);
-                    command.Parameters.AddWithValue("@BatchNumber", medicine.BatchNumber);
-                    command.Parameters.AddWithValue("@Quantity", medicine.Quantity);
-                    command.Parameters.AddWithValue("@ExpiryDate", medicine.ExpiryDate.ToString("yyyy-MM-dd"));
-                    command.Parameters.AddWithValue("@Supplier", medicine.Supplier);
-                    command.Parameters.AddWithValue("@Manufacturer", medicine.Manufacturer);
-                    command.ExecuteNonQuery();
-                }
+                    {"@Id", medicine.Id},
+                    {"@Name", medicine.Name},
+                    {"@BatchNumber", medicine.BatchNumber},
+                    {"@Quantity", medicine.Quantity},
+                    {"@ExpiryDate", medicine.ExpiryDate.ToString("yyyy-MM-dd")},
+                    {"@Supplier", medicine.Supplier},
+                    {"@Manufacturer", medicine.Manufacturer}
+                };
 
+                ExecuteSql(connection, insertMedicine, parameters);
                 connection.Close();
             }
         }
 
-        // Get all medicines from the database
         public List<Medicine> GetAllMedicines()
         {
             List<Medicine> medicines = new List<Medicine>();
@@ -108,23 +170,20 @@ namespace Pharmacy
                 connection.Open();
 
                 string selectMedicines = "SELECT * FROM Medicines";
-                using (var command = new SQLiteCommand(selectMedicines, connection))
+                using (var reader = ExecuteReader(connection, selectMedicines))
                 {
-                    using (var reader = command.ExecuteReader())
+                    while (reader.Read())
                     {
-                        while (reader.Read())
-                        {
-                            var medicine = new Medicine(
-                                reader.GetInt32(0),  // Id
-                                reader.GetString(1), // Name
-                                reader.GetString(2), // BatchNumber
-                                reader.GetInt32(3),  // Quantity
-                                DateTime.Parse(reader.GetString(4)), // ExpiryDate
-                                reader.GetString(5), // Supplier
-                                reader.GetString(6)  // Manufacturer
-                            );
-                            medicines.Add(medicine);
-                        }
+                        var medicine = new Medicine(
+                            reader.GetInt32(0),  // Id
+                            reader.GetString(1), // Name
+                            reader.GetString(2), // BatchNumber
+                            reader.GetInt32(3),  // Quantity
+                            DateTime.Parse(reader.GetString(4)), // ExpiryDate
+                            reader.GetString(5), // Supplier
+                            reader.GetString(6)  // Manufacturer
+                        );
+                        medicines.Add(medicine);
                     }
                 }
 
@@ -133,7 +192,7 @@ namespace Pharmacy
 
             return medicines;
         }
-        // Get medicine by ID
+
         public Medicine GetMedicineById(int id)
         {
             using (var connection = new SQLiteConnection($"Data Source={dbFilePath};Version=3;"))
@@ -141,23 +200,20 @@ namespace Pharmacy
                 connection.Open();
 
                 string selectMedicine = "SELECT * FROM Medicines WHERE Id = @Id";
-                using (var command = new SQLiteCommand(selectMedicine, connection))
+                var parameters = new Dictionary<string, object> { { "@Id", id } };
+                using (var reader = ExecuteReader(connection, selectMedicine, parameters))
                 {
-                    command.Parameters.AddWithValue("@Id", id);
-                    using (var reader = command.ExecuteReader())
+                    if (reader.Read())
                     {
-                        if (reader.Read())
-                        {
-                            return new Medicine(
-                                reader.GetInt32(0),  // Id
-                                reader.GetString(1), // Name
-                                reader.GetString(2), // BatchNumber
-                                reader.GetInt32(3),  // Quantity
-                                DateTime.Parse(reader.GetString(4)), // ExpiryDate
-                                reader.GetString(5), // Supplier
-                                reader.GetString(6)  // Manufacturer
-                            );
-                        }
+                        return new Medicine(
+                            reader.GetInt32(0),  // Id
+                            reader.GetString(1), // Name
+                            reader.GetString(2), // BatchNumber
+                            reader.GetInt32(3),  // Quantity
+                            DateTime.Parse(reader.GetString(4)), // ExpiryDate
+                            reader.GetString(5), // Supplier
+                            reader.GetString(6)  // Manufacturer
+                        );
                     }
                 }
 
@@ -167,7 +223,6 @@ namespace Pharmacy
             return null;
         }
 
-        // Update medicine in the database
         public void UpdateMedicine(Medicine medicine)
         {
             using (var connection = new SQLiteConnection($"Data Source={dbFilePath};Version=3;"))
@@ -175,28 +230,28 @@ namespace Pharmacy
                 connection.Open();
 
                 string updateMedicine = @"
-                    UPDATE Medicines
-                    SET Name = @Name, BatchNumber = @BatchNumber, Quantity = @Quantity, ExpiryDate = @ExpiryDate, Supplier = @Supplier, Manufacturer = @Manufacturer
-                    WHERE Id = @Id;
-                ";
+            UPDATE Medicines
+            SET Name = @Name, BatchNumber = @BatchNumber, Quantity = @Quantity, 
+                ExpiryDate = @ExpiryDate, Supplier = @Supplier, Manufacturer = @Manufacturer
+            WHERE Id = @Id;
+        ";
 
-                using (var command = new SQLiteCommand(updateMedicine, connection))
-                {
-                    command.Parameters.AddWithValue("@Id", medicine.Id);
-                    command.Parameters.AddWithValue("@Name", medicine.Name);
-                    command.Parameters.AddWithValue("@BatchNumber", medicine.BatchNumber);
-                    command.Parameters.AddWithValue("@Quantity", medicine.Quantity);
-                    command.Parameters.AddWithValue("@ExpiryDate", medicine.ExpiryDate.ToString("yyyy-MM-dd"));
-                    command.Parameters.AddWithValue("@Supplier", medicine.Supplier);
-                    command.Parameters.AddWithValue("@Manufacturer", medicine.Manufacturer);
-                    command.ExecuteNonQuery();
-                }
+                var parameters = new Dictionary<string, object>
+        {
+            {"@Id", medicine.Id},
+            {"@Name", medicine.Name},
+            {"@BatchNumber", medicine.BatchNumber},
+            {"@Quantity", medicine.Quantity},
+            {"@ExpiryDate", medicine.ExpiryDate.ToString("yyyy-MM-dd")},
+            {"@Supplier", medicine.Supplier},
+            {"@Manufacturer", medicine.Manufacturer}
+        };
 
+                ExecuteSql(connection, updateMedicine, parameters);
                 connection.Close();
             }
         }
 
-        // Add buyer
         public void InsertBuyer(Buyer newBuyer)
         {
             using (var connection = new SQLiteConnection($"Data Source={dbFilePath};Version=3;"))
@@ -208,19 +263,18 @@ namespace Pharmacy
                     VALUES (@Id, @Name, @Contact);
                 ";
 
-                using (var command = new SQLiteCommand(insertBuyer, connection))
+                var parameters = new Dictionary<string, object>
                 {
-                    command.Parameters.AddWithValue("@Id", newBuyer.BuyerId);
-                    command.Parameters.AddWithValue("@Name", newBuyer.Name);
-                    command.Parameters.AddWithValue("@Contact", newBuyer.Contact);
-                    command.ExecuteNonQuery();
-                }
+                    {"@Id", newBuyer.BuyerId},
+                    {"@Name", newBuyer.Name},
+                    {"@Contact", newBuyer.Contact}
+                };
 
+                ExecuteSql(connection, insertBuyer, parameters);
                 connection.Close();
             }
         }
 
-        // Get all buyers
         public List<Buyer> GetAllBuyers()
         {
             List<Buyer> buyers = new List<Buyer>();
@@ -230,18 +284,29 @@ namespace Pharmacy
                 connection.Open();
 
                 string selectBuyers = "SELECT * FROM Buyers";
-                using (var command = new SQLiteCommand(selectBuyers, connection))
+                using (var reader = ExecuteReader(connection, selectBuyers))
                 {
-                    using (var reader = command.ExecuteReader())
+                    while (reader.Read())
                     {
-                        while (reader.Read())
+                        var buyer = new Buyer(
+                            reader.GetInt32(0),  // Id
+                            reader.GetString(1), // Name
+                            reader.GetString(2)  // Contact
+                        );
+                        buyers.Add(buyer);
+                    }
+                }
+
+                // Load purchase history for each buyer
+                foreach (var buyer in buyers)
+                {
+                    string selectPurchases = "SELECT PurchaseDetail FROM PurchaseHistory WHERE BuyerId = @BuyerId";
+                    var purchaseParams = new Dictionary<string, object> { { "@BuyerId", buyer.BuyerId } };
+                    using (var purchaseReader = ExecuteReader(connection, selectPurchases, purchaseParams))
+                    {
+                        while (purchaseReader.Read())
                         {
-                            var buyer = new Buyer(
-                                reader.GetInt32(0),  // Id
-                                reader.GetString(1), // Name
-                                reader.GetString(2)  // Contact
-                            );
-                            buyers.Add(buyer);
+                            buyer.AddPurchase(purchaseReader.GetString(0));
                         }
                     }
                 }
@@ -252,7 +317,6 @@ namespace Pharmacy
             return buyers;
         }
 
-        // Add Supplier
         public void AddSupplier(Supplier newSupplier)
         {
             using (var connection = new SQLiteConnection($"Data Source={dbFilePath};Version=3;"))
@@ -264,18 +328,17 @@ namespace Pharmacy
                     VALUES (@Name, @Contact);
                 ";
 
-                using (var command = new SQLiteCommand(insertSupplier, connection))
+                var parameters = new Dictionary<string, object>
                 {
-                    command.Parameters.AddWithValue("@Name", newSupplier.Name);
-                    command.Parameters.AddWithValue("@Contact", newSupplier.Contact);
-                    command.ExecuteNonQuery();
-                }
+                    {"@Name", newSupplier.Name},
+                    {"@Contact", newSupplier.Contact}
+                };
 
+                ExecuteSql(connection, insertSupplier, parameters);
                 connection.Close();
             }
         }
 
-        // Get all suppliers
         public List<Supplier> GetAllSuppliers()
         {
             List<Supplier> suppliers = new List<Supplier>();
@@ -285,19 +348,16 @@ namespace Pharmacy
                 connection.Open();
 
                 string selectSuppliers = "SELECT * FROM Suppliers";
-                using (var command = new SQLiteCommand(selectSuppliers, connection))
+                using (var reader = ExecuteReader(connection, selectSuppliers))
                 {
-                    using (var reader = command.ExecuteReader())
+                    while (reader.Read())
                     {
-                        while (reader.Read())
-                        {
-                            var supplier = new Supplier(
-                                reader.GetInt32(0),  // Id
-                                reader.GetString(1), // Name
-                                reader.GetString(2)  // Contact
-                            );
-                            suppliers.Add(supplier);
-                        }
+                        var supplier = new Supplier(
+                            reader.GetInt32(0),  // Id
+                            reader.GetString(1), // Name
+                            reader.GetString(2)  // Contact
+                        );
+                        suppliers.Add(supplier);
                     }
                 }
 
@@ -306,6 +366,7 @@ namespace Pharmacy
 
             return suppliers;
         }
+
         public Buyer? GetBuyerById(int id)
         {
             using (var connection = new SQLiteConnection($"Data Source={dbFilePath};Version=3;"))
@@ -313,26 +374,37 @@ namespace Pharmacy
                 connection.Open();
 
                 string selectBuyer = "SELECT * FROM Buyers WHERE Id = @Id";
-                using (var command = new SQLiteCommand(selectBuyer, connection))
+                Buyer buyer = null;
+                var parameters = new Dictionary<string, object> { { "@Id", id } };
+
+                using (var reader = ExecuteReader(connection, selectBuyer, parameters))
                 {
-                    command.Parameters.AddWithValue("@Id", id);
-                    using (var reader = command.ExecuteReader())
+                    if (reader.Read())
                     {
-                        if (reader.Read())
+                        buyer = new Buyer(
+                            reader.GetInt32(0),  // Id
+                            reader.GetString(1), // Name
+                            reader.GetString(2)  // Contact
+                        );
+                    }
+                }
+
+                if (buyer != null)
+                {
+                    string selectPurchases = "SELECT PurchaseDetail FROM PurchaseHistory WHERE BuyerId = @BuyerId";
+                    var purchaseParams = new Dictionary<string, object> { { "@BuyerId", id } };
+                    using (var purchaseReader = ExecuteReader(connection, selectPurchases, purchaseParams))
+                    {
+                        while (purchaseReader.Read())
                         {
-                            return new Buyer(
-                                reader.GetInt32(0),  // Id
-                                reader.GetString(1), // Name
-                                reader.GetString(2)  // Contact
-                            );
+                            buyer.AddPurchase(purchaseReader.GetString(0));
                         }
                     }
                 }
 
                 connection.Close();
+                return buyer;
             }
-
-            return null; // Return null if buyer is not found
         }
 
         public void UpdateBuyer(Buyer buyer)
@@ -342,19 +414,41 @@ namespace Pharmacy
                 connection.Open();
 
                 string updateBuyer = @"
-            UPDATE Buyers
-            SET Name = @Name, Contact = @Contact
-            WHERE Id = @Id;
-        ";
+                    UPDATE Buyers
+                    SET Name = @Name, Contact = @Contact
+                    WHERE Id = @Id;
+                ";
 
-                using (var command = new SQLiteCommand(updateBuyer, connection))
+                var parameters = new Dictionary<string, object>
                 {
-                    command.Parameters.AddWithValue("@Id", buyer.BuyerId);
-                    command.Parameters.AddWithValue("@Name", buyer.Name);
-                    command.Parameters.AddWithValue("@Contact", buyer.Contact);
-                    command.ExecuteNonQuery();
-                }
+                    {"@Id", buyer.BuyerId},
+                    {"@Name", buyer.Name},
+                    {"@Contact", buyer.Contact}
+                };
 
+                ExecuteSql(connection, updateBuyer, parameters);
+                connection.Close();
+            }
+        }
+
+        public void InsertPurchase(int buyerId, string purchaseDetail)
+        {
+            using (var connection = new SQLiteConnection($"Data Source={dbFilePath};Version=3;"))
+            {
+                connection.Open();
+
+                string insertPurchase = @"
+                    INSERT INTO PurchaseHistory (BuyerId, PurchaseDetail)
+                    VALUES (@BuyerId, @PurchaseDetail);
+                ";
+
+                var parameters = new Dictionary<string, object>
+                {
+                    {"@BuyerId", buyerId},
+                    {"@PurchaseDetail", purchaseDetail}
+                };
+
+                ExecuteSql(connection, insertPurchase, parameters);
                 connection.Close();
             }
         }
