@@ -1,136 +1,124 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Pharmacy
 {
-    class AVLNode
+    public class AVLNode
     {
-        public Medicine Data;
-        public AVLNode Left, Right;
-        public int Height;
+        public object Data { get; set; } // Can hold Medicine or Buyer
+        public AVLNode? Left { get; set; } // Nullable to avoid CS8618
+        public AVLNode? Right { get; set; } // Nullable to avoid CS8618
+        public int Height { get; set; }
 
-        public AVLNode(Medicine med)
+        public AVLNode(object data)
         {
-            Data = med;
+            Data = data;
+            Left = null;
+            Right = null;
             Height = 1;
         }
     }
 
-    internal class AVL_Tree
+    public class AVL_Tree
     {
-        private AVLNode root;
+        private AVLNode? root; // Nullable to avoid CS8618
 
-        // Get Height of Node
-        private int Height(AVLNode node) => node == null ? 0 : node.Height;
+        private int Height(AVLNode? node) => node == null ? 0 : node.Height;
+        private int GetBalance(AVLNode? node) => node == null ? 0 : Height(node.Left) - Height(node.Right);
 
-        // Get Balance Factor
-        private int GetBalance(AVLNode node) => node == null ? 0 : Height(node.Left) - Height(node.Right);
-
-        // Right Rotate
         private AVLNode RightRotate(AVLNode y)
         {
-            AVLNode x = y.Left;
-            AVLNode T2 = x.Right;
-            x.Right = y;
+            AVLNode? x = y.Left;
+            AVLNode? T2 = x?.Right;
+            if (x != null) x.Right = y;
             y.Left = T2;
             y.Height = Math.Max(Height(y.Left), Height(y.Right)) + 1;
-            x.Height = Math.Max(Height(x.Left), Height(x.Right)) + 1;
-            return x;
+            if (x != null) x.Height = Math.Max(Height(x.Left), Height(x.Right)) + 1;
+            return x ?? y; // Fallback to y if x is null (shouldn't happen)
         }
 
-        // Left Rotate
         private AVLNode LeftRotate(AVLNode x)
         {
-            AVLNode y = x.Right;
-            AVLNode T2 = y.Left;
-            y.Left = x;
+            AVLNode? y = x.Right;
+            AVLNode? T2 = y?.Left;
+            if (y != null) y.Left = x;
             x.Right = T2;
             x.Height = Math.Max(Height(x.Left), Height(x.Right)) + 1;
-            y.Height = Math.Max(Height(y.Left), Height(y.Right)) + 1;
-            return y;
+            if (y != null) y.Height = Math.Max(Height(y.Left), Height(y.Right)) + 1;
+            return y ?? x; // Fallback to x if y is null (shouldn't happen)
         }
 
-        // Insert Medicine in AVL Tree
-        public void Insert(Medicine med)
+        public void Insert(object data)
         {
-            root = Insert(root, med);
+            root = Insert(root, data);
         }
 
-        private AVLNode Insert(AVLNode node, Medicine med)
+        private AVLNode Insert(AVLNode? node, object data)
         {
             if (node == null)
-                return new AVLNode(med);
+                return new AVLNode(data);
 
-            if (med.Id < node.Data.Id)
-                node.Left = Insert(node.Left, med);
-            else if (med.Id > node.Data.Id)
-                node.Right = Insert(node.Right, med);
+            int compareResult;
+            if (data is Medicine med)
+                compareResult = med.Id.CompareTo(((Medicine)node.Data).Id);
+            else if (data is Buyer buyer)
+                compareResult = buyer.BuyerId.CompareTo(((Buyer)node.Data).BuyerId);
+            else
+                throw new ArgumentException("Unsupported data type for AVL Tree");
+
+            if (compareResult < 0)
+                node.Left = Insert(node.Left, data);
+            else if (compareResult > 0)
+                node.Right = Insert(node.Right, data);
             else
                 return node; // Duplicates not allowed
 
             node.Height = 1 + Math.Max(Height(node.Left), Height(node.Right));
-
             int balance = GetBalance(node);
 
-            if (balance > 1 && med.Id < node.Left.Data.Id)
+            if (balance > 1 && Compare(data, node.Left!.Data) < 0)
                 return RightRotate(node);
-
-            if (balance < -1 && med.Id > node.Right.Data.Id)
+            if (balance < -1 && Compare(data, node.Right!.Data) > 0)
                 return LeftRotate(node);
-
-            if (balance > 1 && med.Id > node.Left.Data.Id)
+            if (balance > 1 && Compare(data, node.Left!.Data) > 0)
             {
-                node.Left = LeftRotate(node.Left);
+                node.Left = LeftRotate(node.Left!);
                 return RightRotate(node);
             }
-
-            if (balance < -1 && med.Id < node.Right.Data.Id)
+            if (balance < -1 && Compare(data, node.Right!.Data) < 0)
             {
-                node.Right = RightRotate(node.Right);
+                node.Right = RightRotate(node.Right!);
                 return LeftRotate(node);
             }
 
             return node;
         }
 
-        // Search for a medicine by ID
-        public Medicine Search(int id)
+        private int Compare(object a, object b)
         {
-            return Search(root, id);
+            if (a is Medicine medA && b is Medicine medB)
+                return medA.Id.CompareTo(medB.Id);
+            if (a is Buyer buyerA && b is Buyer buyerB)
+                return buyerA.BuyerId.CompareTo(buyerB.BuyerId);
+            throw new ArgumentException("Incompatible types for comparison");
         }
 
-        private Medicine Search(AVLNode node, int id)
+        public object? Search(int id)
+        {
+            return Search(root, id); // Return type is nullable to address CS8603
+        }
+
+        private object? Search(AVLNode? node, int id)
         {
             if (node == null)
                 return null;
 
-            if (id < node.Data.Id)
+            int nodeId = node.Data is Medicine med ? med.Id : ((Buyer)node.Data).BuyerId;
+            if (id < nodeId)
                 return Search(node.Left, id);
-            else if (id > node.Data.Id)
+            else if (id > nodeId)
                 return Search(node.Right, id);
             else
                 return node.Data;
-        }
-
-        // In-Order Traversal (Sorted Inventory by ID)
-        public List<Medicine> GetAllMedicines()
-        {
-            List<Medicine> result = new List<Medicine>();
-            InOrder(root, result);
-            return result;
-        }
-
-        private void InOrder(AVLNode node, List<Medicine> result)
-        {
-            if (node == null)
-                return;
-
-            InOrder(node.Left, result);
-            result.Add(node.Data);
-            InOrder(node.Right, result);
         }
     }
 }
