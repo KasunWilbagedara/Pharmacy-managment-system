@@ -86,14 +86,14 @@ namespace Pharmacy
                 {
                     if (medicines[j].Quantity > medicines[j + 1].Quantity)
                     {
-                        // Swap medicines[j] and medicines[j+1]
+                      
                         Swap(medicines, j, j + 1);
                     }
                 }
             }
         }
 
-        // Swap helper method
+        
         private static void Swap(List<Medicine> medicines, int i, int j)
         {
             Medicine temp = medicines[i];

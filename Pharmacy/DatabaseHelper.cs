@@ -8,9 +8,9 @@ namespace Pharmacy
     public class DatabaseHelper
     {
         private string dbFilePath = "pharmacy_inventory.db";
-        private bool verbose = true; // Set to true to see SQL statements
+        private bool verbose = true; 
 
-        // Helper method to execute SQL with logging
+        
         private void ExecuteSql(SQLiteConnection connection, string sql, Dictionary<string, object> parameters = null)
         {
             using (var command = new SQLiteCommand(sql, connection))
@@ -40,7 +40,7 @@ namespace Pharmacy
             }
         }
 
-        // Helper method to read data with logging
+        
         private SQLiteDataReader ExecuteReader(SQLiteConnection connection, string sql, Dictionary<string, object> parameters = null)
         {
             using (var command = new SQLiteCommand(sql, connection))

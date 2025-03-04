@@ -5,8 +5,8 @@ namespace Pharmacy
     public class BSTNode
     {
         public object Data { get; set; }
-        public BSTNode? Left { get; set; } // Nullable
-        public BSTNode? Right { get; set; } // Nullable
+        public BSTNode? Left { get; set; } 
+        public BSTNode? Right { get; set; } 
 
         public BSTNode(object data)
         {
@@ -18,7 +18,7 @@ namespace Pharmacy
 
     public class BinarySearchTree
     {
-        private BSTNode? root; // Nullable
+        private BSTNode? root; 
 
         public void Insert(object data)
         {
@@ -47,7 +47,7 @@ namespace Pharmacy
 
         public object? Search(string name)
         {
-            return SearchRec(root, name ?? string.Empty); // Handle null name
+            return SearchRec(root, name ?? string.Empty); 
         }
 
         private object? SearchRec(BSTNode? node, string name)

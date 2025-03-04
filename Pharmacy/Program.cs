@@ -12,7 +12,9 @@ namespace Pharmacy
 
             while (true)
             {
-                Console.WriteLine("\nPharmacy Inventory Management System");
+                Console.WriteLine("\n             |------------------------------------|");
+                Console.WriteLine("+++++++++++++|Pharmacy Inventory Management System|+++++++++++");
+                Console.WriteLine("             |____________________________________|\n");
                 Console.WriteLine("1. Add Medicine");
                 Console.WriteLine("2. Modify Medicine Details");
                 Console.WriteLine("3. Sell Medicine");

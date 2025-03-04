@@ -7,10 +7,10 @@ namespace Pharmacy
     public class Inventory
     {
         private readonly DatabaseHelper _dbHelper;
-        private AVL_Tree medicineIdTree;    // Non-readonly
-        private BinarySearchTree medicineNameTree; // Non-readonly
-        private AVL_Tree buyerIdTree;       // Non-readonly
-        private BinarySearchTree buyerNameTree; // Non-readonly
+        private AVL_Tree medicineIdTree;    
+        private BinarySearchTree medicineNameTree; 
+        private AVL_Tree buyerIdTree;       
+        private BinarySearchTree buyerNameTree; 
 
         public Inventory(DatabaseHelper dbHelper)
         {

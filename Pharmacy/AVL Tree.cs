@@ -4,9 +4,9 @@ namespace Pharmacy
 {
     public class AVLNode
     {
-        public object Data { get; set; } // Can hold Medicine or Buyer
-        public AVLNode? Left { get; set; } // Nullable to avoid CS8618
-        public AVLNode? Right { get; set; } // Nullable to avoid CS8618
+        public object Data { get; set; } 
+        public AVLNode? Left { get; set; } 
+        public AVLNode? Right { get; set; } 
         public int Height { get; set; }
 
         public AVLNode(object data)
@@ -20,7 +20,7 @@ namespace Pharmacy
 
     public class AVL_Tree
     {
-        private AVLNode? root; // Nullable to avoid CS8618
+        private AVLNode? root; 
 
         private int Height(AVLNode? node) => node == null ? 0 : node.Height;
         private int GetBalance(AVLNode? node) => node == null ? 0 : Height(node.Left) - Height(node.Right);
@@ -33,7 +33,7 @@ namespace Pharmacy
             y.Left = T2;
             y.Height = Math.Max(Height(y.Left), Height(y.Right)) + 1;
             if (x != null) x.Height = Math.Max(Height(x.Left), Height(x.Right)) + 1;
-            return x ?? y; // Fallback to y if x is null (shouldn't happen)
+            return x ?? y;
         }
 
         private AVLNode LeftRotate(AVLNode x)
@@ -44,7 +44,7 @@ namespace Pharmacy
             x.Right = T2;
             x.Height = Math.Max(Height(x.Left), Height(x.Right)) + 1;
             if (y != null) y.Height = Math.Max(Height(y.Left), Height(y.Right)) + 1;
-            return y ?? x; // Fallback to x if y is null (shouldn't happen)
+            return y ?? x; 
         }
 
         public void Insert(object data)
@@ -70,7 +70,7 @@ namespace Pharmacy
             else if (compareResult > 0)
                 node.Right = Insert(node.Right, data);
             else
-                return node; // Duplicates not allowed
+                return node; 
 
             node.Height = 1 + Math.Max(Height(node.Left), Height(node.Right));
             int balance = GetBalance(node);
@@ -104,7 +104,7 @@ namespace Pharmacy
 
         public object? Search(int id)
         {
-            return Search(root, id); // Return type is nullable to address CS8603
+            return Search(root, id); 
         }
 
         private object? Search(AVLNode? node, int id)
